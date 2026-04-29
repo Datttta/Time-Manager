@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Time Manager
+Comment=Stopwatch and time tracking app
+Exec=Time-manager
+Icon=Time-manager
+Terminal=false
+Categories=Utility;
+
