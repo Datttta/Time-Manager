@@ -55,6 +55,8 @@ if platform.system() == "Windows":
     
     shortcut.save()
 
+    print("App installed")
+
     # 4. Force Reload (your existing code)
     reload_command = (
         'taskkill /f /im explorer.exe && '
@@ -70,11 +72,11 @@ else:
     _ = subprocess.run(["pyinstaller", "--onefile", "--windowed", "--icon=Time-manager.ico", "Time-manager.py"], check=True)
     
     home = Path.home()
-    _ = subprocess.run(["mv", "dist/Time-manager", home/".local/bin"])
+    _ = subprocess.run(["sudo", "mv", "dist/Time-manager", "/usr/bin"])
     _ = subprocess.run(["mv", "Time-manager.desktop", home/".local/share/applications"])
     _ = subprocess.run(["mv", "Time-manager.png", home/".local/share/icons"])
 
     os.chdir("..")
     _ = subprocess.run(["rm", "-rf", "Time-manager"])
 
-print("App installed")
+    print("App installed")
