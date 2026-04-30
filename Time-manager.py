@@ -84,11 +84,11 @@ class Stopwatch:
         event.widget.icursor(tk.END)
         return "break"
 
-    def start_enter(self, event):
+    def start_enter(self, _):
         self.main_action()
         return "break"
 
-    def delete_selected(self, event):
+    def delete_selected(self, _):
         selected = list(self.listbox.curselection())
 
         for index in reversed(selected):
@@ -101,7 +101,7 @@ class Stopwatch:
             self.update_total()
 
 
-    def select_all_listbox(self, event):
+    def select_all_listbox(self, _):
         self.listbox.select_set(0, tk.END)  # select all items
         return "break"
 
@@ -154,9 +154,8 @@ class Stopwatch:
         hours = int(self.elapsed // 3600)
         minutes = int((self.elapsed % 3600) // 60)
         seconds = int(self.elapsed % 60)
-        milliseconds = int((self.elapsed % 1) * 100)
 
-        time_str = f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:02}"
+        time_str = f"{hours:02}:{minutes:02}:{seconds:02}"
 
         self.end_timestamp = datetime.now()
 
