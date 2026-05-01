@@ -211,6 +211,7 @@ class Stopwatch:
     def stop(self):
         if self.running:
             self.running = False
+            self.main_btn.config(text="")
 
     # ===============================
     # Total time
