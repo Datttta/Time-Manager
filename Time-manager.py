@@ -136,6 +136,7 @@ class Stopwatch:
         self.label.config(text="00:00:00:00")
         self.start_timestamp = None
         self.end_timestamp = None
+        self.main_btn.config(text="")
 
     # ===============================
     # SAVE CURRENT STOPWATCH
@@ -178,6 +179,8 @@ class Stopwatch:
 
         if self.rows > 10:
             self.listbox.config(height=self.rows)
+
+        self.name_entry.delete(0, tk.END)
 
         # Reset
         self.reset()
