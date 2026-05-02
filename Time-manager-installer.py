@@ -55,7 +55,7 @@ if platform.system() == "Windows":
     
     shortcut.save()
 
-    print("App installed, you can delete the folder used for the installation...")
+    print("App installed, you can delete the installation folder...")
 
     # 4. Force Reload (your existing code)
     reload_command = (

@@ -63,11 +63,10 @@ class Stopwatch:
         # ===============================
         # SAVED LIST DISPLAY
         # ===============================
-        self.listbox = tk.Listbox(root, width=70, selectmode=tk.EXTENDED)
-        self.listbox.pack(pady=10)
+        self.textbox = tk.Text(root, width=70, height=10)
+        self.textbox.pack(pady=10)
 
-        self.listbox.bind("<Control-a>", self.select_all_listbox)
-        self.listbox.bind("<Delete>", self.delete_selected)
+        self.textbox.bind("<Control-a>", self.select_all_textbox)
 
         # ===============================
         # Total time
@@ -88,29 +87,17 @@ class Stopwatch:
         self.main_action()
         return "break"
 
-    def delete_selected(self, _):
-        selected = list(self.listbox.curselection())
-
-        for index in reversed(selected):
-            self.rows -= 1
-            #print("Row removed:", self.rows)
-
-            self.listbox.delete(index)
-            del self.records[index]
-
-            self.update_total()
-
-
-    def select_all_listbox(self, _):
-        self.listbox.select_set(0, tk.END)  # select all items
-        return "break"
-
     def paste(self, event):
         try:
             text = self.root.clipboard_get()
             event.widget.insert(tk.INSERT, text)
         except tk.TclError:
              pass
+        return "break"
+
+    def select_all_textbox(self, event):
+        event.widget.tag_add(tk.SEL, "1.0", tk.END)  # select all text
+        event.widget.mark_set(tk.INSERT, "1.0")      # move cursor to the beginning
         return "break"
 
     # ===============================
@@ -168,17 +155,19 @@ class Stopwatch:
         record = (name, self.elapsed)
         self.records.append(record)
         
-        # Show in listbox
-        self.listbox.insert(tk.END, f"{name} → {time_str} | {start_str} - {end_str}")
+        # Show in textbox
+        self.textbox.insert(tk.END, f"{name} → {time_str} | {start_str} - {end_str}\n")
 
         # Change width based of length stopwatch name 
-        longest = max(len(self.listbox.get(i)) for i in range(self.listbox.size()))
+        content = self.textbox.get("1.0", tk.END).splitlines()
 
-        if longest >= 75:
-            self.listbox.config(width=longest)
+        if content:
+            longest = max(len(line) for line in content)
+            self.textbox.config(width=max(70, longest))  # keep minimum width
 
-        if self.rows > 10:
-            self.listbox.config(height=self.rows)
+        # Adjust height to number of lines
+        line_count = int(self.textbox.index('end-1c').split('.')[0])
+        self.textbox.config(height=max(10, line_count))
 
         self.name_entry.delete(0, tk.END)
 
