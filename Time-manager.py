@@ -63,7 +63,7 @@ class Stopwatch:
         # ===============================
         # SAVED LIST DISPLAY
         # ===============================
-        self.textbox = tk.Text(root, width=70, height=10)
+        self.textbox = tk.Text(root, width=70, height=10, undo=True)
         self.textbox.pack(pady=10)
 
         self.textbox.bind("<Control-a>", self.select_all_textbox)
