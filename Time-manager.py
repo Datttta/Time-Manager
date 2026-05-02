@@ -163,7 +163,7 @@ class Stopwatch:
 
         if content:
             longest = max(len(line) for line in content)
-            self.textbox.config(width=max(70, longest))  # keep minimum width
+            self.textbox.config(width=max(70, longest + 1))  # keep minimum width
 
         # Adjust height to number of lines
         line_count = int(self.textbox.index('end-1c').split('.')[0])
