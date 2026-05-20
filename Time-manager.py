@@ -1,6 +1,8 @@
 import tkinter as tk
+from tkinter import messagebox
 from time import time
-from datetime import datetime
+from datetime import datetime, timedelta
+
 
 class Stopwatch:
     def __init__(self, root):
@@ -13,32 +15,28 @@ class Stopwatch:
         self.running = False
         self.start_time = 0
         self.elapsed = 0
-        self.total_elapsed = 0
-        self.rows = 0
 
         self.start_timestamp = None
         self.end_timestamp = None
 
-        # Store saved stopwatches
+        # Each record is:
+        # {"name": str, "start": datetime, "end": datetime}
         self.records = []
 
         # ===============================
-        # NAME INPUT 
+        # NAME INPUT
         # ===============================
         top_frame = tk.Frame(root)
         top_frame.pack(pady=(30, 0))
-        
-        # Entry
+
         self.name_entry = tk.Entry(top_frame, width=30)
         self.name_entry.grid(row=0, column=0, ipady=4, padx=(0, 10))
-        self.name_entry.insert(0, "")
         self.name_entry.focus_set()
 
-        ##Binds
         self.name_entry.bind("<Control-a>", self.select_all)
         self.name_entry.bind("<Return>", self.start_enter)
         self.name_entry.bind("<Control-v>", self.paste)
-        
+
         # ===============================
         # TIME DISPLAY
         # ===============================
@@ -60,19 +58,24 @@ class Stopwatch:
         self.reset_btn = tk.Button(btn_frame, text="Reset", width=10, command=self.reset)
         self.reset_btn.grid(row=0, column=2)
 
+        self.edit_btn = tk.Button(btn_frame, text="Edit selected", width=12, command=self.edit_selected_record)
+        self.edit_btn.grid(row=0, column=3, padx=(0, 0))
+
         # ===============================
         # SAVED LIST DISPLAY
         # ===============================
         self.textbox = tk.Text(root, width=70, height=10, undo=True)
         self.textbox.pack(pady=10)
-
         self.textbox.bind("<Control-a>", self.select_all_textbox)
+        self.textbox.bind("<Double-Button-1>", self.edit_selected_record)
+        self.textbox.bind("<Key>", lambda event: "break")  # prevent manual typing inside the display
 
         # ===============================
-        # Total time
+        # TOTAL TIME
         # ===============================
         self.total_label = tk.Label(root, text="Total: 00:00:00", font=("Arial", 15))
         self.total_label.pack(pady=10)
+
         self.update_clock()
 
     # ===============================
@@ -92,89 +95,131 @@ class Stopwatch:
             text = self.root.clipboard_get()
             event.widget.insert(tk.INSERT, text)
         except tk.TclError:
-             pass
+            pass
         return "break"
 
     def select_all_textbox(self, event):
-        event.widget.tag_add(tk.SEL, "1.0", tk.END)  # select all text
-        event.widget.mark_set(tk.INSERT, "1.0")      # move cursor to the beginning
+        event.widget.tag_add(tk.SEL, "1.0", tk.END)
+        event.widget.mark_set(tk.INSERT, "1.0")
         return "break"
 
     # ===============================
-    # START/SAVE
+    # HELPERS
+    # ===============================
+    def parse_hhmm(self, value):
+        value = value.strip()
+        parts = value.split(":")
+        if len(parts) != 2:
+            raise ValueError("Use HH:MM format.")
+        hour = int(parts[0])
+        minute = int(parts[1])
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError("Hour must be 0-23 and minute must be 0-59.")
+        return hour, minute
+
+    def apply_hhmm(self, dt, hhmm):
+        hour, minute = self.parse_hhmm(hhmm)
+        return dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    def record_duration_seconds(self, record):
+        delta = record["end"] - record["start"]
+        if delta.total_seconds() < 0:
+            delta += timedelta(days=1)
+        return int(delta.total_seconds())
+
+    def format_duration(self, total_seconds):
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    def format_record(self, record):
+        duration = self.format_duration(self.record_duration_seconds(record))
+        start_str = record["start"].strftime("%H:%M")
+        end_str = record["end"].strftime("%H:%M")
+        return f'{record["name"]} → {duration} | {start_str} - {end_str}'
+
+    def refresh_textbox(self):
+        self.textbox.config(state="normal")
+        self.textbox.delete("1.0", tk.END)
+
+        for record in self.records:
+            self.textbox.insert(tk.END, self.format_record(record) + "\n")
+
+        content = self.textbox.get("1.0", tk.END).splitlines()
+        if content:
+            longest = max(len(line) for line in content)
+            self.textbox.config(width=max(70, longest + 1))
+
+        line_count = int(self.textbox.index("end-1c").split(".")[0])
+        self.textbox.config(height=max(10, line_count))
+
+    def finish_refresh_textbox(self):
+        self.textbox.config(state="normal")
+        self.refresh_textbox()
+
+    # ===============================
+    # START / SAVE
     # ===============================
     def main_action(self):
         if not self.running:
             self.start_time = time() - self.elapsed
-            self.start_timestamp = datetime.now()
+            if self.start_timestamp is None:
+                self.start_timestamp = datetime.now()
             self.running = True
-            self.main_btn.config(text="")
+            self.main_btn.config(text="Save")
         else:
             self.save()
             self.main_btn.config(text="Start")
 
     # ===============================
-    # RESET
+    # RESET CURRENT STOPWATCH
     # ===============================
     def reset(self):
         self.running = False
+        self.start_time = 0
         self.elapsed = 0
-        self.total_elapsed = 0
-        self.label.config(text="00:00:00:00")
         self.start_timestamp = None
         self.end_timestamp = None
-        self.main_btn.config(text="")
+        self.label.config(text="00:00:00:00")
+        self.main_btn.config(text="Start")
+        self.update_total()
 
     # ===============================
     # SAVE CURRENT STOPWATCH
     # ===============================
     def save(self):
+        if self.start_timestamp is None:
+            return
+
+        if self.running:
+            self.elapsed = time() - self.start_time
+            self.running = False
+
         if self.elapsed == 0:
-            return  # avoid saving empty stopwatch
+            return
 
-        name = self.name_entry.get()
+        name = self.name_entry.get().strip()
+        end_timestamp = datetime.now()
 
-        self.rows += 1
-
-        #print("Row added:", self.rows)
-
-        # Format time elapsed
-        hours = int(self.elapsed // 3600)
-        minutes = int((self.elapsed % 3600) // 60)
-        seconds = int(self.elapsed % 60)
-
-        time_str = f"{hours:02}:{minutes:02}:{seconds:02}"
-
-        self.end_timestamp = datetime.now()
-
-        # Format timestamps
-        start_str = self.start_timestamp.strftime("%H:%M") if self.start_timestamp else "N/A"
-        end_str = self.end_timestamp.strftime("%H:%M") if self.end_timestamp else "Running"
-
-        # Save as tuple (name, time)
-        record = (name, self.elapsed)
+        record = {
+            "name": name,
+            "start": self.start_timestamp,
+            "end": end_timestamp,
+        }
         self.records.append(record)
-        
-        # Show in textbox
-        self.textbox.insert(tk.END, f"{name} → {time_str} | {start_str} - {end_str}\n")
-
-        # Change width based of length stopwatch name 
-        content = self.textbox.get("1.0", tk.END).splitlines()
-
-        if content:
-            longest = max(len(line) for line in content)
-            self.textbox.config(width=max(70, longest + 1))  # keep minimum width
-
-        # Adjust height to number of lines
-        line_count = int(self.textbox.index('end-1c').split('.')[0])
-        self.textbox.config(height=max(10, line_count))
 
         self.name_entry.delete(0, tk.END)
 
-        # Reset
-        self.reset()
+        self.start_time = 0
+        self.elapsed = 0
+        self.start_timestamp = None
+        self.end_timestamp = None
+        self.label.config(text="00:00:00:00")
 
-        # Update total time
+        self.refresh_textbox()
+        self.textbox.config(state="normal")
+
         self.update_total()
 
     # ===============================
@@ -189,40 +234,122 @@ class Stopwatch:
         seconds = int(self.elapsed % 60)
         milliseconds = int((self.elapsed % 1) * 100)
 
-        self.label.config(
-            text=f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:02}"
-        )
-
-        self.root.after(65, self.update_clock)
+        self.label.config(text=f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:02}")
 
         self.update_total()
+        self.root.after(65, self.update_clock)
 
     # ===============================
-    # STOP
+    # STOP / PAUSE
     # ===============================
     def stop(self):
         if self.running:
+            self.elapsed = time() - self.start_time
             self.running = False
-            self.main_btn.config(text="")
+            self.main_btn.config(text="Start")
+            self.update_total()
 
     # ===============================
-    # Total time
+    # TOTAL TIME
     # ===============================
     def update_total(self):
+        total_seconds = sum(self.record_duration_seconds(record) for record in self.records)
+        total_seconds += int(self.elapsed)
 
-        if self.running:
-            self.total_elapsed = time() - self.start_time
-
-        total_seconds = sum(record[1] for record in self.records) + self.total_elapsed
-
-
-        hours = int(total_seconds // 3600)
-        minutes = int((total_seconds % 3600) // 60)
-        seconds = int(total_seconds % 60)
-
-        total_str = f"{hours:02}:{minutes:02}:{seconds:02}"
-
+        total_str = self.format_duration(total_seconds)
         self.total_label.config(text=f"Total: {total_str}")
+
+    # ===============================
+    # EDIT SAVED RECORD
+    # ===============================
+    def edit_selected_record(self, event=None):
+        if not self.records:
+            return
+
+        try:
+            if event is not None:
+                index = self.textbox.index(f"@{event.x},{event.y}")
+                line_no = int(index.split(".")[0]) - 1
+            else:
+                index = self.textbox.index("insert")
+                line_no = int(index.split(".")[0]) - 1
+        except Exception:
+            return
+
+        if line_no < 0 or line_no >= len(self.records):
+            return
+
+        record = self.records[line_no]
+
+        popup = tk.Toplevel(self.root)
+        popup.title("Edit stopwatch")
+        popup.transient(self.root)
+        popup.grab_set()
+
+        # Popup size
+        width = 430
+        height = 170
+
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+
+        # Center coordinates
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+
+        popup.geometry(f"{width}x{height}+{x}+{y}")
+
+        tk.Label(popup, text="Name:").grid(row=0, column=0, padx=10, pady=(10, 5), sticky="e")
+        name_var = tk.StringVar(value=record["name"])
+        name_entry = tk.Entry(popup, textvariable=name_var, width=30)
+        name_entry.grid(row=0, column=1, padx=10, pady=(10, 5))
+
+        tk.Label(popup, text="Start (HH:MM):").grid(row=1, column=0, padx=10, pady=5, sticky="e")
+        start_var = tk.StringVar(value=record["start"].strftime("%H:%M"))
+        start_entry = tk.Entry(popup, textvariable=start_var, width=30)
+        start_entry.grid(row=1, column=1, padx=10, pady=5)
+
+        tk.Label(popup, text="End (HH:MM):").grid(row=2, column=0, padx=10, pady=5, sticky="e")
+        end_var = tk.StringVar(value=record["end"].strftime("%H:%M"))
+        end_entry = tk.Entry(popup, textvariable=end_var, width=30)
+        end_entry.grid(row=2, column=1, padx=10, pady=5)
+
+        def save_changes():
+            try:
+                new_name = name_var.get().strip()
+                new_start = self.apply_hhmm(record["start"], start_var.get())
+                new_end = self.apply_hhmm(record["end"], end_var.get())
+
+                record["name"] = new_name
+                record["start"] = new_start
+                record["end"] = new_end
+
+                self.refresh_textbox()
+                self.textbox.config(state="normal")
+                self.update_total()
+                popup.destroy()
+            except Exception as e:
+                messagebox.showerror("Invalid time", str(e), parent=popup)
+
+        btn_frame = tk.Frame(popup)
+        btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
+
+        tk.Button(btn_frame, text="Save", width=10, command=save_changes).grid(row=0, column=0, padx=5)
+        tk.Button(btn_frame, text="Cancel", width=10, command=popup.destroy).grid(row=0, column=1, padx=5)
+
+        name_entry.focus_set()
+        popup.bind("<Return>", lambda _event: save_changes())
+        popup.bind("<Escape>", lambda _event: popup.destroy())
+
+    # ===============================
+    # OPTIONAL: CLEAR ALL RECORDS
+    # ===============================
+    def clear_all_records(self):
+        self.records.clear()
+        self.refresh_textbox()
+        self.textbox.config(state="normal")
+        self.update_total()
+
 
 # ===============================
 # MAIN
