@@ -36,6 +36,9 @@ class Stopwatch:
         self.name_entry.bind("<Control-a>", self.select_all)
         self.name_entry.bind("<Return>", self.start_enter)
         self.name_entry.bind("<Control-v>", self.paste)
+        self.name_entry.bind("<Control-c>", self.copy_entry)
+        self.name_entry.bind("<Control-C>", self.copy_entry)
+        self.setup_entry_undo(self.name_entry)
 
         # ===============================
         # TIME DISPLAY
@@ -65,7 +68,7 @@ class Stopwatch:
         self.textbox.pack(pady=10)
         self.textbox.bind("<Control-a>", self.select_all_textbox)
         self.textbox.bind("<Double-Button-1>", self.edit_selected_record)
-        self.textbox.bind("<Key>", lambda event: "break")  # prevent manual typing inside the display
+        self.textbox.bind("<Key>", lambda _: "break")  # prevent manual typing inside the display
 
         # ===============================
         # RIGHT CLICK MENU
@@ -103,9 +106,25 @@ class Stopwatch:
     def paste(self, event):
         try:
             text = self.root.clipboard_get()
-            event.widget.insert(tk.INSERT, text)
+        except tk.TclError:
+            return "break"
+
+        widget = event.widget
+
+        try:
+            if isinstance(widget, tk.Entry):
+                if widget.selection_present():
+                    widget.delete(tk.SEL_FIRST, tk.SEL_LAST)
+                widget.insert(tk.INSERT, text)
+
+            elif isinstance(widget, tk.Text):
+                if widget.tag_ranges(tk.SEL):
+                    widget.delete("sel.first", "sel.last")
+                widget.insert(tk.INSERT, text)
+
         except tk.TclError:
             pass
+
         return "break"
 
     def copy_entry(self, event):
@@ -113,6 +132,11 @@ class Stopwatch:
             text = event.widget.selection_get()
         except tk.TclError:
             return "break"
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
+        return "break"
 
     def select_all_textbox(self, event):
         event.widget.tag_add(tk.SEL, "1.0", tk.END)
@@ -133,13 +157,13 @@ class Stopwatch:
     def setup_entry_undo(self, entry):
         entry.undo_stack = [entry.get()]
 
-        def save_state(_event):
+        def save_state(_):
             current = entry.get()
 
             if not entry.undo_stack or current != entry.undo_stack[-1]:
                 entry.undo_stack.append(current)
 
-        def undo(event):
+        def undo(_):
             if len(entry.undo_stack) > 1:
                 entry.undo_stack.pop()
 
@@ -410,8 +434,8 @@ class Stopwatch:
         tk.Button(btn_frame, text="Cancel", width=10, command=popup.destroy).grid(row=0, column=1, padx=5)
 
         name_entry.focus_set()
-        popup.bind("<Return>", lambda _event: save_changes())
-        popup.bind("<Escape>", lambda _event: popup.destroy())
+        popup.bind("<Return>", lambda _: save_changes())
+        popup.bind("<Escape>", lambda _: popup.destroy())
 
 # ===============================
 # MAIN
