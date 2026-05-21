@@ -77,6 +77,9 @@ class Stopwatch:
         )
 
         self.textbox.bind("<Button-3>", self.show_context_menu)
+        self.textbox.bind("<Control-c>", self.copy_selected_textbox)
+        self.textbox.bind("<Control-C>", self.copy_selected_textbox)
+
         # ===============================
         # TOTAL TIME
         # ===============================
@@ -109,6 +112,18 @@ class Stopwatch:
         event.widget.tag_add(tk.SEL, "1.0", tk.END)
         event.widget.mark_set(tk.INSERT, "1.0")
         return "break"
+
+    def copy_selected_textbox(self, event=None):
+        try:
+            text = self.textbox.get("sel.first", "sel.last")
+        except tk.TclError:
+            return "break"  # nothing selected
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()  # keeps clipboard after app closes
+        return "break"
+
 
     # ===============================
     # Popup
