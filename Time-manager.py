@@ -58,9 +58,6 @@ class Stopwatch:
         self.reset_btn = tk.Button(btn_frame, text="Reset", width=10, command=self.reset)
         self.reset_btn.grid(row=0, column=2)
 
-        self.edit_btn = tk.Button(btn_frame, text="Edit selected", width=12, command=self.edit_selected_record)
-        self.edit_btn.grid(row=0, column=3, padx=(0, 0))
-
         # ===============================
         # SAVED LIST DISPLAY
         # ===============================
@@ -70,6 +67,16 @@ class Stopwatch:
         self.textbox.bind("<Double-Button-1>", self.edit_selected_record)
         self.textbox.bind("<Key>", lambda event: "break")  # prevent manual typing inside the display
 
+        # ===============================
+        # RIGHT CLICK MENU
+        # ===============================
+        self.context_menu = tk.Menu(self.root, tearoff=0)
+        self.context_menu.add_command(
+            label="Edit selected",
+            command=self.edit_selected_record
+        )
+
+        self.textbox.bind("<Button-3>", self.show_context_menu)
         # ===============================
         # TOTAL TIME
         # ===============================
@@ -102,6 +109,20 @@ class Stopwatch:
         event.widget.tag_add(tk.SEL, "1.0", tk.END)
         event.widget.mark_set(tk.INSERT, "1.0")
         return "break"
+
+    # ===============================
+    # Popup
+    # ===============================
+    def show_context_menu(self, event):
+        try:
+            # Move cursor to clicked line
+            index = self.textbox.index(f"@{event.x},{event.y}")
+            self.textbox.mark_set("insert", index)
+
+            # Show menu
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
 
     # ===============================
     # HELPERS
@@ -340,16 +361,6 @@ class Stopwatch:
         name_entry.focus_set()
         popup.bind("<Return>", lambda _event: save_changes())
         popup.bind("<Escape>", lambda _event: popup.destroy())
-
-    # ===============================
-    # OPTIONAL: CLEAR ALL RECORDS
-    # ===============================
-    def clear_all_records(self):
-        self.records.clear()
-        self.refresh_textbox()
-        self.textbox.config(state="normal")
-        self.update_total()
-
 
 # ===============================
 # MAIN
