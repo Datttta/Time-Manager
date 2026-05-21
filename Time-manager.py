@@ -108,12 +108,18 @@ class Stopwatch:
             pass
         return "break"
 
+    def copy_entry(self, event):
+        try:
+            text = event.widget.selection_get()
+        except tk.TclError:
+            return "break"
+
     def select_all_textbox(self, event):
         event.widget.tag_add(tk.SEL, "1.0", tk.END)
         event.widget.mark_set(tk.INSERT, "1.0")
         return "break"
 
-    def copy_selected_textbox(self, event=None):
+    def copy_selected_textbox(self, _):
         try:
             text = self.textbox.get("sel.first", "sel.last")
         except tk.TclError:
@@ -124,6 +130,27 @@ class Stopwatch:
         self.root.update()  # keeps clipboard after app closes
         return "break"
 
+    def setup_entry_undo(self, entry):
+        entry.undo_stack = [entry.get()]
+
+        def save_state(_event):
+            current = entry.get()
+
+            if not entry.undo_stack or current != entry.undo_stack[-1]:
+                entry.undo_stack.append(current)
+
+        def undo(event):
+            if len(entry.undo_stack) > 1:
+                entry.undo_stack.pop()
+
+                entry.delete(0, tk.END)
+                entry.insert(0, entry.undo_stack[-1])
+
+            return "break"
+
+        entry.bind("<KeyRelease>", save_state)
+        entry.bind("<Control-z>", undo)
+        entry.bind("<Control-Z>", undo)
 
     # ===============================
     # Popup
@@ -349,6 +376,15 @@ class Stopwatch:
         end_var = tk.StringVar(value=record["end"].strftime("%H:%M"))
         end_entry = tk.Entry(popup, textvariable=end_var, width=30)
         end_entry.grid(row=2, column=1, padx=10, pady=5)
+
+        for entry in (name_entry, start_entry, end_entry):
+            entry.bind("<Control-a>", self.select_all)
+            entry.bind("<Control-A>", self.select_all)
+            entry.bind("<Control-c>", self.copy_entry)
+            entry.bind("<Control-C>", self.copy_entry)
+            entry.bind("<Control-v>", self.paste)
+            entry.bind("<Control-V>", self.paste)
+            self.setup_entry_undo(entry)
 
         def save_changes():
             try:
