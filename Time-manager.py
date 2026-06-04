@@ -79,6 +79,11 @@ class Stopwatch:
             command=self.edit_selected_record
         )
 
+        self.context_menu.add_command(
+            label="Delete selected",
+            command=self.delete_selected_record
+        )
+
         self.textbox.bind("<Button-3>", self.show_context_menu)
         self.textbox.bind("<Control-c>", self.copy_selected_textbox)
         self.textbox.bind("<Control-C>", self.copy_selected_textbox)
@@ -345,6 +350,27 @@ class Stopwatch:
 
         total_str = self.format_duration(total_seconds)
         self.total_label.config(text=f"Total: {total_str}")
+
+    # ===============================
+    # DELETE SAVED RECORD
+    # ===============================
+    def delete_selected_record(self):
+        if not self.records:
+            return
+
+        try:
+            index = self.textbox.index("insert")
+            line_no = int(index.split(".")[0]) - 1
+        except Exception:
+            return
+
+        if line_no < 0 or line_no >= len(self.records):
+            return
+
+        del self.records[line_no]
+
+        self.refresh_textbox()
+        self.update_total()
 
     # ===============================
     # EDIT SAVED RECORD
